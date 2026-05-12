@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chấm Speaking AI - Anh Ngữ Nhật Mỹ</title>
+    
+    <!-- Tải Tailwind CSS để trang trí -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tải thư viện Icon của Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet" />
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24; }
+        .icon-unfill { font-variation-settings: 'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 24; }
+    </style>
+
+    <!-- Tải React và Babel chạy trực tiếp trên trình duyệt -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <!-- Nơi ứng dụng React sẽ hiển thị -->
+    <div id="root"></div>
+
+    <!-- CODE LẬP TRÌNH BẮT ĐẦU TỪ ĐÂY -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ================= CẤU HÌNH API GOOGLE AI STUDIO =================
+        // BẠN HÃY DÁN API KEY CỦA BẠN VÀO GIỮA 2 DẤU NGOẶC KÉP BÊN DƯỚI
+        const GEMINI_API_KEY = "AIzaSyCnhhWfzv1pn0P8hqUQTsLJZOLreP8kvXQ"; 
+        // =================================================================
+
+        function App() {
+            const [step, setStep] = useState(1);
+            const [studentName, setStudentName] = useState('');
+            const [className, setClassName] = useState('');
+            const [file, setFile] = useState(null);
+            const [error, setError] = useState('');
+            const [resultData, setResultData] = useState({ score: 0, feedback: '', date: '' });
+
+            const handleFileChange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    setFile(e.target.files[0]); setError('');
+                }
+            };
+            const handleDragOver = (e) => e.preventDefault();
+            const handleDrop = (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setFile(e.dataTransfer.files[0]); setError('');
+                }
+            };
+
+            const resetApp = () => {
+                setStep(1); setStudentName(''); setClassName(''); setFile(null); setError('');
+            };
+
+            const handlePrintPDF = () => window.print();
+
+            const handleStartGrading = async () => {
+                if (!studentName.trim()) { setError('Vui lòng nhập họ tên học sinh nhé!'); return; }
+                if (!file) { setError('Vui lòng tải lên video hoặc file ghi âm bài nói của con.'); return; }
+
+                setError(''); setStep(2);
+                const today = new Date();
+                const dateString = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+
+                if (!GEMINI_API_KEY) {
+                    setTimeout(() => {
+                        setResultData({
+                            score: "8.5",
+                            feedback: '"Hệ thống đang chạy bản Demo vì chưa nhập API Key. Bài nói của con rất tốt, phát âm rõ ràng!"',
+                            date: dateString
+                        });
+                        setStep(3);
+                    }, 3000);
+                    return;
+                }
+
+                try {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onloadend = async () => {
+                        const base64DataString = reader.result.split(',')[1];
+                        
+                        const promptText = `
+                        Bạn là một chuyên gia khảo thí tiếng Anh tại trung tâm Anh Ngữ Nhật Mỹ.
+                        Hãy nghe đoạn âm thanh/video này của học sinh có tên là "${studentName}".
+                        Nhiệm vụ của bạn:
+                        1. Chấm điểm kỹ năng Speaking từ 1.0 đến 10.0 (chỉ trả về 1 con số thập phân).
+                        2. Viết một đoạn nhận xét ngắn gọn, khích lệ, bằng tiếng Việt, khoảng 3-4 câu, phù hợp với trẻ em.
+                        TRẢ VỀ KẾT QUẢ DƯỚI DẠNG JSON TUYỆT ĐỐI CHÍNH XÁC THEO CẤU TRÚC SAU:
+                        {"score": "8.5", "feedback": "Nhận xét của bạn ở đây..."}
+                        `;
+
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [
+                                        { text: promptText },
+                                        { inlineData: { mimeType: file.type, data: base64DataString } }
+                                    ]
+                                }],
+                                generationConfig: { responseMimeType: "application/json" }
+                            })
+                        });
+
+                        const result = await response.json();
+                        if (result.error) throw new Error(result.error.message);
+
+                        const parsedData = JSON.parse(result.candidates[0].content.parts[0].text);
+                        setResultData({
+                            score: parsedData.score,
+                            feedback: `"${parsedData.feedback}"`,
+                            date: dateString
+                        });
+                        setStep(3);
+                    };
+                } catch (err) {
+                    console.error(err);
+                    setResultData({
+                        score: "0",
+                        feedback: "Có lỗi kết nối với Google AI. Vui lòng kiểm tra lại file hoặc mạng.",
+                        date: dateString
+                    });
+                    setStep(3);
+                }
+            };
+
+            const btnClass = "w-full bg-[#0D88C4] hover:bg-[#0A6B9A] text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-md";
+
+            return (
+                <div className="min-h-screen bg-[#F4F9FB] flex flex-col items-center justify-center font-sans text-gray-800 p-4">
+                    <style dangerouslySetInnerHTML={{__html: `
+                        @media print {
+                            body { background-color: white !important; }
+                            .print-hidden { display: none !important; }
+                            .print-full-width { width: 100% !important; max-width: 100% !important; box-shadow: none !important; border: none !important; }
+                            .print-exact-colors { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            .page-break-inside-avoid { page-break-inside: avoid; }
+                        }
+                        /* Hiệu ứng xoay */
+                        @keyframes spin { 100% { transform: rotate(360deg); } }
+                        .animate-spin-slow { animation: spin 2s linear infinite; }
+                    `}} />
+
+                    {/* Header */}
+                    <div className="fixed top-0 left-0 w-full p-4 bg-white shadow-sm flex items-center print-hidden z-10">
+                        <div className="flex items-center gap-2 bg-[#0D88C4] text-white px-4 py-2 rounded-lg font-bold">
+                            <span className="material-symbols-outlined text-[#FFCA29] text-xl">stars</span>
+                            <span className="tracking-wide">ANH NGỮ NHẬT MỸ</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-16 w-full flex justify-center">
+                        {/* BƯỚC 1: UPLOAD */}
+                        {step === 1 && (
+                            <div className="w-full max-w-lg space-y-6">
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-[#0D88C4]/10">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="flex items-center gap-2 text-sm font-bold text-[#0D88C4] mb-2">
+                                                <span className="material-symbols-outlined text-base">person</span> HỌ TÊN HỌC SINH <span className="text-red-500">*</span>
+                                            </label>
+                                            <input type="text" placeholder="Ví dụ: Nguyễn Văn A" value={studentName} onChange={(e) => setStudentName(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#0D88C4] focus:ring-2 focus:ring-[#0D88C4]/20 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="flex items-center gap-2 text-sm font-bold text-[#0D88C4] mb-2">
+                                                <span className="material-symbols-outlined text-base">menu_book</span> LỚP / KHÓA HỌC <span className="text-gray-400 font-normal">(Tùy chọn)</span>
+                                            </label>
+                                            <input type="text" placeholder="Ví dụ: Movers 1A..." value={className} onChange={(e) => setClassName(e.target.value)}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#0D88C4] focus:ring-2 focus:ring-[#0D88C4]/20 outline-none" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-[#0D88C4]/10 flex flex-col items-center text-center">
+                                    <div className={`w-24 h-24 mb-6 rounded-full flex items-center justify-center cursor-pointer transition-all ${file ? 'bg-green-50 text-green-600 border-2 border-green-200' : 'bg-[#0D88C4]/5 text-[#0D88C4] border-2 border-dashed border-[#0D88C4]/30'}`}
+                                        onDragOver={handleDragOver} onDrop={handleDrop} onClick={() => document.getElementById('file-upload').click()}>
+                                        <span className="material-symbols-outlined" style={{fontSize: '40px'}}>{file ? 'audio_file' : 'upload'}</span>
+                                        <input id="file-upload" type="file" accept="video/*,audio/*" className="hidden" onChange={handleFileChange} />
+                                    </div>
+                                    <h2 className="text-2xl font-extrabold mb-6 text-gray-800">Gửi bài Speaking<br/>(Video/Audio)</h2>
+
+                                    {file && (
+                                        <div className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-6 border border-gray-200">
+                                            <span className="truncate max-w-[200px] text-sm font-medium text-gray-700">{file.name}</span>
+                                            <span className="material-symbols-outlined text-green-500 text-base">check_circle</span>
+                                        </div>
+                                    )}
+
+                                    <div className="w-full bg-[#EAF5FB] p-4 rounded-xl text-left mb-6 border border-[#0D88C4]/20">
+                                        <h3 className="text-xs font-bold text-[#0D88C4] flex items-center gap-1 mb-2">
+                                            <span className="material-symbols-outlined text-sm">memory</span> CÔNG NGHỆ PHÂN TÍCH AI:
+                                        </h3>
+                                        <ul className="text-xs text-[#0D88C4]/80 space-y-1.5 list-disc pl-4 font-medium">
+                                            <li>Trực tiếp gọi dữ liệu đến Google AI Studio.</li>
+                                            <li>Phân tích sâu ngữ âm, ngữ điệu và độ lưu loát.</li>
+                                        </ul>
+                                    </div>
+
+                                    {error && (
+                                        <div className="w-full mb-4 flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                                            <span className="material-symbols-outlined text-base">error</span><span>{error}</span>
+                                        </div>
+                                    )}
+
+                                    <button onClick={handleStartGrading} className={btnClass}>BẮT ĐẦU CHẤM BÀI</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* BƯỚC 2: LOADING */}
+                        {step === 2 && (
+                            <div className="flex flex-col items-center justify-center h-[60vh]">
+                                <div className="relative flex items-center justify-center mb-8">
+                                    <span className="material-symbols-outlined text-[#FFCA29] animate-spin-slow absolute icon-unfill" style={{fontSize: '80px'}}>progress_activity</span>
+                                    <div className="bg-white p-4 rounded-full shadow-md z-10 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-[#0D88C4]" style={{fontSize: '32px'}}>mic</span>
+                                    </div>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-800 mb-2">Đang gửi báo cáo cho AI...</h2>
+                                <p className="text-gray-500 text-sm">Ba mẹ giữ nguyên màn hình và đợi một chút nhé!</p>
+                            </div>
+                        )}
+
+                        {/* BƯỚC 3: KẾT QUẢ */}
+                        {step === 3 && (
+                            <div className="w-full max-w-2xl flex flex-col items-center print-full-width">
+                                <div className="w-full flex justify-between items-center mb-4 print-hidden">
+                                    <button onClick={resetApp} className="text-gray-500 hover:text-[#0D88C4] text-sm font-bold">← Chấm bài khác</button>
+                                    <button onClick={handlePrintPDF} className="flex items-center gap-2 bg-[#0D88C4] text-white px-5 py-2.5 rounded-xl font-bold shadow-md">
+                                        <span className="material-symbols-outlined text-base">download</span> XUẤT PHIẾU PDF
+                                    </button>
+                                </div>
+
+                                <div className="bg-white w-full p-8 md:p-12 rounded-[2rem] shadow-sm border border-[#0D88C4]/10 print-exact-colors print-full-width relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#0D88C4]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-80"></div>
+                                    
+                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-12 relative z-10">
+                                        <div className="flex items-start gap-4">
+                                            <div className="bg-[#0D88C4] p-3 rounded-2xl text-white shadow-lg">
+                                                <span className="material-symbols-outlined text-[#FFCA29]" style={{fontSize: '32px'}}>stars</span>
+                                            </div>
+                                            <div>
+                                                <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">PHIẾU NHẬN XÉT<br/>BÀI NÓI</h1>
+                                                <p className="text-xs font-bold text-[#0D88C4] mt-2 uppercase tracking-wider">PHÂN TÍCH BỞI GOOGLE AI • {resultData.date}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-[#EAF5FB] px-6 py-4 rounded-2xl border border-[#0D88C4]/20 min-w-[200px] text-center print-exact-colors">
+                                            <div className="text-[10px] font-bold text-[#0D88C4] uppercase tracking-widest mb-1">HỌC SINH</div>
+                                            <div className="font-extrabold text-lg text-gray-800">{studentName}</div>
+                                            {className && (
+                                                <div className="mt-1 flex items-center justify-center gap-1 text-sm text-gray-600 font-medium">
+                                                    <span className="material-symbols-outlined text-[#FFCA29] text-sm">menu_book</span> Lớp: {className}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-center justify-center mb-12 relative z-10">
+                                        <div className="w-48 h-48 rounded-full border-[12px] border-[#F4F9FB] shadow-xl flex flex-col items-center justify-center bg-white relative print-exact-colors">
+                                            <div className="absolute -top-4 right-4 bg-[#FFCA29] p-2 rounded-full text-white shadow-lg print-exact-colors flex">
+                                                <span className="material-symbols-outlined text-xl">workspace_premium</span>
+                                            </div>
+                                            <span className="text-6xl font-black text-[#0D88C4] tracking-tighter">{resultData.score}</span>
+                                            <div className="text-[10px] font-bold text-gray-400 tracking-widest mt-2 uppercase">ĐIỂM TRUNG BÌNH / 10</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50/80 p-6 md:p-8 rounded-3xl border border-gray-100 relative z-10 page-break-inside-avoid print-exact-colors">
+                                        <p className="text-gray-700 text-base md:text-lg leading-relaxed font-medium italic text-center px-4">
+                                            {resultData.feedback}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="mt-12 pt-6 border-t border-gray-100 text-center text-xs text-gray-400 print-exact-colors">
+                                        Tài liệu được tạo tự động bởi AI của Anh Ngữ Nhật Mỹ.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
