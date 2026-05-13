@@ -80,10 +80,10 @@
                     return;
                 }
 
-                try {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onloadend = async () => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = async () => {
+                    try {
                         const base64DataString = reader.result.split(',')[1];
                         
                         const promptText = `
@@ -111,7 +111,11 @@
                         });
 
                         const result = await response.json();
-                        if (result.error) throw new Error(result.error.message);
+                        
+                        // Kiểm tra nếu Google báo lỗi
+                        if (!response.ok || result.error) {
+                            throw new Error(result.error?.message || "Lỗi từ máy chủ Google");
+                        }
 
                         const parsedData = JSON.parse(result.candidates[0].content.parts[0].text);
                         setResultData({
@@ -120,16 +124,17 @@
                             date: dateString
                         });
                         setStep(3);
-                    };
-                } catch (err) {
-                    console.error(err);
-                    setResultData({
-                        score: "0",
-                        feedback: "Có lỗi kết nối với Google AI. Vui lòng kiểm tra lại file hoặc mạng.",
-                        date: dateString
-                    });
-                    setStep(3);
-                }
+
+                    } catch (err) {
+                        console.error("Chi tiết lỗi:", err);
+                        setResultData({
+                            score: "LỖI",
+                            feedback: `Hệ thống gặp sự cố: ${err.message}. \n\nLỜI KHUYÊN: Nếu bạn đang tải Video, có thể file quá nặng (vượt quá vài chục MB). Hãy test lại bằng một file ghi âm (Audio .mp3 hoặc .m4a) ngắn khoảng 10 giây để kiểm tra.`,
+                            date: dateString
+                        });
+                        setStep(3); // Vẫn chuyển sang màn hình 3 để hiện thông báo lỗi
+                    }
+                };
             };
 
             const btnClass = "w-full bg-[#0D88C4] hover:bg-[#0A6B9A] text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-md";
