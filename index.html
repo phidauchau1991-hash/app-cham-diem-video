@@ -30,7 +30,7 @@
 
         // ================= CẤU HÌNH API GOOGLE AI STUDIO =================
         // BẠN HÃY DÁN API KEY CỦA BẠN VÀO GIỮA 2 DẤU NGOẶC KÉP BÊN DƯỚI
-        const GEMINI_API_KEY = "AIzaSyA1UFnPM46esrLABTEpQRsOh5O3g_avVf8"; 
+        const GEMINI_API_KEY = "AIzaSyCnhhWfzv1pn0P8hqUQTsLJZOLreP8kvXQ"; 
         // =================================================================
 
         function App() {
@@ -86,41 +86,9 @@
                     try {
                         const base64DataString = reader.result.split(',')[1];
                         
-                        // --- THÊM BƯỚC MỚI: TỰ ĐỘNG TÌM MODEL PHÙ HỢP ---
-                        // Gọi API ListModels để lấy danh sách các model đang hoạt động
-                        const listModelsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
-                        if (!listModelsResponse.ok) {
-                            throw new Error("Không thể kết nối để lấy danh sách mô hình AI. Vui lòng kiểm tra lại API Key.");
-                        }
-                        const listModelsData = await listModelsResponse.json();
+                        // Sử dụng mô hình ổn định nhất cho đa phương thức hiện tại
+                        const targetModel = "gemini-1.5-pro-latest"; 
                         
-                        // Tìm model tốt nhất (Ưu tiên Flash 1.5 mới nhất, rồi đến Pro 1.5, sau đó là Flash cũ)
-                        let bestModel = "models/gemini-1.5-flash-latest"; // Giá trị mặc định dự phòng
-                        
-                        if (listModelsData && listModelsData.models) {
-                            const models = listModelsData.models.map(m => m.name);
-                            // Ưu tiên 1: Flash 1.5 mới nhất (nhanh, rẻ, hỗ trợ audio)
-                            if (models.includes("models/gemini-1.5-flash-latest")) {
-                                bestModel = "models/gemini-1.5-flash-latest";
-                            } 
-                            // Ưu tiên 2: Bản Pro 1.5 mới nhất
-                            else if (models.includes("models/gemini-1.5-pro-latest")) {
-                                bestModel = "models/gemini-1.5-pro-latest";
-                            }
-                            // Ưu tiên 3: Bản Flash chung chung
-                            else if (models.includes("models/gemini-1.5-flash")) {
-                                bestModel = "models/gemini-1.5-flash";
-                            }
-                             // Ưu tiên 4: Bất kỳ bản Flash 1.5 nào có trong danh sách
-                            else {
-                                const anyFlashModel = models.find(m => m.includes("gemini-1.5-flash"));
-                                if (anyFlashModel) bestModel = anyFlashModel;
-                            }
-                        }
-                        
-                        console.log("Đã chọn tự động mô hình:", bestModel); // In ra console để theo dõi
-                        // --------------------------------------------------
-
                         const promptText = `
                         Bạn là một chuyên gia khảo thí tiếng Anh tại trung tâm Anh Ngữ Nhật Mỹ.
                         Hãy nghe đoạn âm thanh/video này của học sinh có tên là "${studentName}".
@@ -131,8 +99,7 @@
                         {"score": "8.5", "feedback": "Nhận xét của bạn ở đây..."}
                         `;
 
-                        // --- CẬP NHẬT: SỬ DỤNG MODEL VỪA TÌM ĐƯỢC THAY VÌ FIX CỨNG ---
-                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${bestModel}:generateContent?key=${GEMINI_API_KEY}`, {
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${GEMINI_API_KEY}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -148,9 +115,37 @@
 
                         const result = await response.json();
                         
-                        // Kiểm tra nếu Google báo lỗi
                         if (!response.ok || result.error) {
-                            throw new Error(result.error?.message || "Lỗi từ máy chủ Google");
+                            // Nếu model bị lỗi, thử lại với model dự phòng (gemini-pro-vision)
+                            console.warn("Lỗi với model chính, thử lại model dự phòng...", result.error);
+                            
+                            const fallbackResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [
+                                            { text: promptText },
+                                            { inlineData: { mimeType: file.type, data: base64DataString } }
+                                        ]
+                                    }],
+                                    generationConfig: { responseMimeType: "application/json" }
+                                })
+                            });
+                            
+                            const fallbackResult = await fallbackResponse.json();
+                            if (!fallbackResponse.ok || fallbackResult.error) {
+                                throw new Error(fallbackResult.error?.message || "Lỗi từ cả 2 mô hình máy chủ Google");
+                            }
+                            
+                            const parsedData = JSON.parse(fallbackResult.candidates[0].content.parts[0].text);
+                            setResultData({
+                                score: parsedData.score,
+                                feedback: `"${parsedData.feedback}"`,
+                                date: dateString
+                            });
+                            setStep(3);
+                            return;
                         }
 
                         const parsedData = JSON.parse(result.candidates[0].content.parts[0].text);
@@ -165,10 +160,10 @@
                         console.error("Chi tiết lỗi:", err);
                         setResultData({
                             score: "LỖI",
-                            feedback: `Hệ thống gặp sự cố: ${err.message}. \n\nLỜI KHUYÊN: Nếu bạn đang tải Video, có thể file quá nặng (vượt quá vài chục MB). Hãy test lại bằng một file ghi âm (Audio .mp3 hoặc .m4a) ngắn khoảng 10 giây để kiểm tra.`,
+                            feedback: `Hệ thống gặp sự cố: ${err.message}. \n\nLỜI KHUYÊN: Vui lòng thử lại sau.`,
                             date: dateString
                         });
-                        setStep(3); // Vẫn chuyển sang màn hình 3 để hiện thông báo lỗi
+                        setStep(3);
                     }
                 };
             };
