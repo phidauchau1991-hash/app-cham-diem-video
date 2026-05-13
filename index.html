@@ -53,32 +53,129 @@
 
             const handlePrintPDF = () => window.print();
 
-            const handleStartGrading = () => {
+            const handleStartGrading = async () => {
                 if (!studentName.trim()) { setError('Vui lòng nhập họ tên học sinh nhé!'); return; }
                 if (!file) { setError('Vui lòng tải lên video hoặc file ghi âm bài nói của con.'); return; }
 
                 setError(''); setStep(2);
                 
-                // MÔ PHỎNG HỆ THỐNG XỬ LÝ ỔN ĐỊNH
-                setTimeout(() => {
-                    const randomScore = (Math.random() * (9.5 - 7.5) + 7.5).toFixed(1);
-                    const feedbacks = [
-                        `"Chào con! Bài nói của con rất tuyệt vời và đầy đủ thông tin. Con đã giới thiệu các chủ đề một cách chi tiết, phát âm rất rõ ràng và có cảm xúc cá nhân tốt. Tiếp tục phát huy sự tự tin này con nhé!"`,
-                        `"Thầy/Cô rất ấn tượng với ngữ điệu của con trong bài nói này. Vốn từ vựng của con đang ngày càng phong phú hơn. Cố gắng luyện tập thêm một chút về âm cuối để bài nói hoàn hảo hơn nữa nhé. Chúc mừng con!"`,
-                        `"Một bài nói đầy năng lượng! Con đã thể hiện sự hiểu bài rất sâu sắc. Cách con nối từ và ngắt nghỉ rất tự nhiên giống như người bản xứ. Ba mẹ chắc chắn sẽ rất tự hào về sự tiến bộ này của con."`
-                    ];
-                    
-                    const today = new Date();
-                    const dateString = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+                const today = new Date();
+                const dateString = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
 
+                // NẾU CHƯA CÓ API KEY -> CẢNH BÁO VÀ CHẠY MÔ PHỎNG (MOCK)
+                if (!GEMINI_API_KEY) {
+                    setTimeout(() => {
+                        setResultData({
+                            score: "8.5",
+                            feedback: '"Hệ thống đang chạy bản Demo vì chưa nhập API Key. Bài nói của con rất tốt, phát âm rõ ràng!"',
+                            date: dateString
+                        });
+                        setStep(3);
+                    }, 3000);
+                    return;
+                }
+
+                // ==============================================================
+                // KẾT NỐI API THẬT (GOOGLE AI STUDIO - GEMINI 1.5 FLASH)
+                // ==============================================================
+                try {
+                    // 1. Đọc file dưới dạng Base64
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    
+                    reader.onloadend = async () => {
+                        try {
+                            const base64Data = reader.result.split(',')[1];
+                            const mimeType = file.type;
+
+                            // 2. Chuẩn bị câu lệnh (Prompt) yêu cầu chấm điểm
+                            const promptText = `
+                                Bạn là một chuyên gia khảo thí tiếng Anh nghiêm khắc nhưng tâm lý tại trung tâm Anh Ngữ Nhật Mỹ.
+                                Hãy nghe kỹ đoạn âm thanh/video này của học sinh tên là "${studentName}".
+                                
+                                Nhiệm vụ của bạn:
+                                1. Lắng nghe và đánh giá chính xác độ lưu loát, phát âm, và từ vựng.
+                                2. Chấm điểm kỹ năng Speaking từ 1.0 đến 10.0 (chỉ trả về 1 con số thập phân, ví dụ: 7.5, 8.0, 6.5). Chấm đúng thực lực, không nương tay.
+                                3. Viết một đoạn nhận xét ngắn gọn, chỉ ra điểm mạnh và điểm yếu, khích lệ bằng tiếng Việt, phù hợp với trẻ em.
+                                
+                                YÊU CẦU BẮT BUỘC: Chỉ trả về nội dung dưới dạng JSON hợp lệ (không chứa markdown \`\`\`json). Cấu trúc chính xác như sau:
+                                {"score": "điểm số", "feedback": "lời nhận xét"}
+                            `;
+
+                            // 3. Gọi API (Sử dụng model gemini-1.5-flash vì nó cực nhanh, hỗ trợ audio/video và cực kỳ ổn định)
+                            // Sử dụng endpoint chuẩn của phiên bản v1beta để tránh lỗi "is not supported"
+                            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                            
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [
+                                            { text: promptText },
+                                            {
+                                                inlineData: {
+                                                    mimeType: mimeType,
+                                                    data: base64Data
+                                                }
+                                            }
+                                        ]
+                                    }],
+                                    generationConfig: {
+                                        temperature: 0.4, // Giảm độ ngẫu nhiên để chấm điểm chuẩn xác hơn
+                                        responseMimeType: "application/json" // Ép hệ thống trả về chuẩn JSON
+                                    }
+                                })
+                            });
+
+                            const result = await response.json();
+
+                            // 4. Bắt lỗi từ Server Google
+                            if (!response.ok) {
+                                throw new Error(result.error?.message || `Lỗi máy chủ Google: ${response.status}`);
+                            }
+
+                            // 5. Xử lý dữ liệu trả về thành công
+                            if (result.candidates && result.candidates[0].content.parts[0].text) {
+                                const aiResponseText = result.candidates[0].content.parts[0].text;
+                                const parsedData = JSON.parse(aiResponseText);
+
+                                setResultData({
+                                    score: parsedData.score,
+                                    feedback: `"${parsedData.feedback}"`,
+                                    date: dateString
+                                });
+                                setStep(3); // Chuyển sang giao diện PDF
+                            } else {
+                                throw new Error("AI không trả về kết quả hợp lệ. Định dạng dữ liệu bị sai.");
+                            }
+
+                        } catch (innerError) {
+                            console.error("Lỗi quá trình xử lý AI:", innerError);
+                            setResultData({
+                                score: "LỖI",
+                                feedback: `Hệ thống gặp sự cố trong quá trình phân tích file. Chi tiết lỗi: ${innerError.message}. \n\nLỜI KHUYÊN: Nếu bạn đang tải Video lớn, trình duyệt có thể bị nghẽn. Hãy thử lại bằng một file ghi âm (Audio .mp3 hoặc .m4a) ngắn khoảng 5-10 giây để kiểm tra kết nối API.`,
+                                date: dateString
+                            });
+                            setStep(3);
+                        }
+                    };
+
+                    reader.onerror = () => {
+                        throw new Error("Không thể đọc được file bạn vừa tải lên. Xin vui lòng thử lại.");
+                    }
+
+                } catch (outerError) {
+                    console.error("Lỗi hệ thống ngoại vi:", outerError);
                     setResultData({
-                        score: randomScore,
-                        feedback: feedbacks[Math.floor(Math.random() * feedbacks.length)],
+                        score: "LỖI",
+                        feedback: `Lỗi hệ thống: ${outerError.message}`,
                         date: dateString
                     });
-                    
                     setStep(3);
-                }, 4000); // Đợi 4 giây mô phỏng AI
+                }
             };
 
             const btnClass = "w-full bg-[#0D88C4] hover:bg-[#0A6B9A] text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-md";
