@@ -14,7 +14,7 @@
 
   /* --- 1. LOCAL STORAGE STORE CHO HOTSPOTS --- */
   const Store = (() => {
-    const STORAGE_KEY = 'gs1_hotspots_v2';
+    const STORAGE_KEY = 'gs1_hotspots_v3';
     let cache = null;
 
     function getMap() {
@@ -148,6 +148,76 @@
     };
   })();
 
+  /* --- 2b. SOUND FX SYNTHESIZER (WEB AUDIO API — KHÔNG CẦN TẢI FILE) --- */
+  const SoundFX = (() => {
+    let ctx = null;
+    function getCtx() {
+      if (!ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) ctx = new AudioCtx();
+      }
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      return ctx;
+    }
+
+    return {
+      playDing() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        [1318.51, 1567.98].forEach((freq, idx) => {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.38);
+        });
+      },
+      playBuzzer() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(180, now + 0.22);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(now);
+        osc.stop(now + 0.24);
+      },
+      playFanfare() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          const dur = (i === notes.length - 1) ? 0.6 : 0.2;
+          gain.gain.setValueAtTime(0.2, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + dur);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + dur + 0.05);
+        });
+      }
+    };
+  })();
+
   /* --- 3. DOM ELEMENTS --- */
   const pageImg = document.getElementById('book-page-img');
   const hotspotOverlay = document.getElementById('hotspot-overlay');
@@ -160,7 +230,7 @@
   const adminToolbar = document.getElementById('admin-toolbar');
   const appContainer = document.getElementById('app-container');
 
-  // Modal
+  // Modal Thẻ Từ Vựng
   const vocabModal = document.getElementById('vocab-modal');
   const modalEmoji = document.getElementById('modal-emoji');
   const modalWord = document.getElementById('modal-word');
@@ -169,6 +239,29 @@
   const btnReplay = document.getElementById('btn-replay-audio');
   const btnCloseModal = document.getElementById('btn-close-modal');
   const modalBackdrop = document.getElementById('vocab-modal-backdrop');
+
+  // Modal Luyện Tập & Game
+  const btnPracticeGame = document.getElementById('btn-practice-game');
+  const quizModal = document.getElementById('quiz-modal');
+  const quizModalBackdrop = document.getElementById('quiz-modal-backdrop');
+  const btnCloseQuiz = document.getElementById('btn-close-quiz');
+  const quizBadgeUnit = document.getElementById('quiz-badge-unit');
+  const quizCounter = document.getElementById('quiz-counter');
+  const quizStarCount = document.getElementById('quiz-star-count');
+  const quizProgressFill = document.getElementById('quiz-progress-fill');
+  const quizQuestionPanel = document.getElementById('quiz-question-panel');
+  const quizResultPanel = document.getElementById('quiz-result-panel');
+  const btnQuizAudio = document.getElementById('btn-quiz-audio');
+  const quizPromptText = document.getElementById('quiz-prompt-text');
+  const quizOptionsGrid = document.getElementById('quiz-options-grid');
+  const quizFeedbackBar = document.getElementById('quiz-feedback-bar');
+  const feedbackIcon = document.getElementById('feedback-icon');
+  const feedbackText = document.getElementById('feedback-text');
+  const btnReplayQuiz = document.getElementById('btn-replay-quiz');
+  const btnFinishQuiz = document.getElementById('btn-finish-quiz');
+  const resultCorrectCount = document.getElementById('result-correct-count');
+  const resultTotalCount = document.getElementById('result-total-count');
+  const resultStarsStars = document.getElementById('result-stars-stars');
 
   // Pin Dialog
   const pinDialog = document.getElementById('pin-dialog');
@@ -395,16 +488,159 @@
     showToast('Đã tải xuống file JSON tọa độ');
   };
 
+  /* --- 7b. QUIZ & PRACTICE GAME CONTROLLER --- */
+  let currentQuizUnit = null;
+  let currentQuestions = [];
+  let currentQIndex = 0;
+  let currentStars = 0;
+  let quizLocked = false;
+
+  function openQuiz() {
+    // Tìm unit tương ứng với trang đang học
+    const u = DATA.units.find(unit => unit.pages.includes(currentPage)) || DATA.units[0];
+    currentQuizUnit = u;
+    currentQuestions = (u.quiz && u.quiz.length) ? u.quiz : (DATA.units[0].quiz || []);
+    currentQIndex = 0;
+    currentStars = 0;
+    quizLocked = false;
+
+    quizBadgeUnit.textContent = `🎮 ${u.name} Practice`;
+    quizStarCount.textContent = '0';
+    quizQuestionPanel.hidden = false;
+    quizResultPanel.hidden = true;
+    quizModal.hidden = false;
+
+    renderQuizQuestion();
+  }
+
+  function closeQuiz() {
+    quizModal.hidden = true;
+    Speech.stop();
+  }
+
+  function renderQuizQuestion() {
+    if (currentQIndex >= currentQuestions.length) {
+      showQuizResults();
+      return;
+    }
+
+    const q = currentQuestions[currentQIndex];
+    quizLocked = false;
+    quizFeedbackBar.hidden = true;
+    quizFeedbackBar.className = 'quiz-feedback-bar';
+
+    quizCounter.textContent = `Câu ${currentQIndex + 1}/${currentQuestions.length}`;
+    const percent = ((currentQIndex) / currentQuestions.length) * 100;
+    quizProgressFill.style.width = `${percent}%`;
+
+    quizPromptText.textContent = q.prompt;
+
+    // Render 4 options
+    quizOptionsGrid.innerHTML = '';
+    q.options.forEach(optRef => {
+      const lex = DATA.lexicon[optRef] || { text: optRef, vi: '', emoji: '✨' };
+      const card = document.createElement('div');
+      card.className = 'quiz-card-option';
+      card.innerHTML = `
+        <span class="opt-emoji">${lex.emoji || '✨'}</span>
+        <span class="opt-text">${lex.text}</span>
+        <span class="opt-vi">${lex.vi || ''}</span>
+      `;
+      card.onclick = () => handleOptionSelected(optRef, card, q);
+      quizOptionsGrid.appendChild(card);
+    });
+
+    // Tự động phát âm câu hỏi sau 300ms
+    setTimeout(() => {
+      playQuizPromptAudio();
+    }, 300);
+  }
+
+  function playQuizPromptAudio() {
+    if (!currentQuestions.length || currentQIndex >= currentQuestions.length) return;
+    const q = currentQuestions[currentQIndex];
+    btnQuizAudio.classList.add('is-speaking');
+    Speech.speak(q.audio, null, () => {
+      btnQuizAudio.classList.remove('is-speaking');
+    });
+  }
+
+  function handleOptionSelected(selectedRef, cardEl, q) {
+    if (quizLocked) return;
+
+    if (selectedRef === q.correct) {
+      quizLocked = true;
+      cardEl.classList.add('is-correct');
+      SoundFX.playDing();
+      currentStars++;
+      quizStarCount.textContent = currentStars;
+
+      feedbackIcon.textContent = '🎉';
+      feedbackText.textContent = 'Đúng rồi! Bé giỏi quá!';
+      quizFeedbackBar.className = 'quiz-feedback-bar success';
+      quizFeedbackBar.hidden = false;
+
+      // Disable các thẻ còn lại
+      document.querySelectorAll('.quiz-card-option').forEach(c => {
+        if (c !== cardEl) c.classList.add('disabled');
+      });
+
+      setTimeout(() => {
+        currentQIndex++;
+        renderQuizQuestion();
+      }, 1300);
+    } else {
+      quizLocked = true;
+      cardEl.classList.add('is-wrong');
+      SoundFX.playBuzzer();
+
+      feedbackIcon.textContent = '💡';
+      feedbackText.textContent = 'Chưa đúng rồi! Bé hãy bấm loa nghe lại nhé!';
+      quizFeedbackBar.className = 'quiz-feedback-bar retry';
+      quizFeedbackBar.hidden = false;
+
+      setTimeout(() => {
+        cardEl.classList.remove('is-wrong');
+        quizLocked = false;
+      }, 900);
+    }
+  }
+
+  function showQuizResults() {
+    quizProgressFill.style.width = '100%';
+    quizQuestionPanel.hidden = true;
+    quizResultPanel.hidden = false;
+    SoundFX.playFanfare();
+
+    resultCorrectCount.textContent = currentStars;
+    resultTotalCount.textContent = currentQuestions.length;
+
+    let starsStr = '';
+    for (let i = 0; i < currentStars; i++) starsStr += '⭐';
+    resultStarsStars.textContent = starsStr || '👍';
+  }
+
   // Modal events
   btnCloseModal.onclick = closeModal;
   modalBackdrop.onclick = closeModal;
   btnReplay.onclick = playModalAudio;
 
+  // Quiz events
+  btnPracticeGame.onclick = openQuiz;
+  btnCloseQuiz.onclick = closeQuiz;
+  quizModalBackdrop.onclick = closeQuiz;
+  btnQuizAudio.onclick = playQuizPromptAudio;
+  btnReplayQuiz.onclick = openQuiz;
+  btnFinishQuiz.onclick = closeQuiz;
+
   // Hỗ trợ phím tắt bàn phím
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-    if (e.key === 'ArrowLeft' && !btnPrev.disabled) btnPrev.click();
-    if (e.key === 'ArrowRight' && !btnNext.disabled) btnNext.click();
+    if (e.key === 'Escape') {
+      closeModal();
+      closeQuiz();
+    }
+    if (e.key === 'ArrowLeft' && !btnPrev.disabled && quizModal.hidden) btnPrev.click();
+    if (e.key === 'ArrowRight' && !btnNext.disabled && quizModal.hidden) btnNext.click();
   });
 
   // Khởi tạo

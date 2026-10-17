@@ -43,6 +43,9 @@
       </div>
 
       <div class="tool-actions">
+        <button id="btn-practice-game" class="btn-practice-game" title="Bé luyện tập & làm bài tập qua game">
+          <i class="fa-solid fa-gamepad"></i> <span>Luyện tập</span> <span class="badge-star">⭐</span>
+        </button>
         <button id="btn-admin-toggle" class="admin-toggle-btn" title="Bật/Tắt chế độ ghim tọa độ loa">
           <i class="fa-solid fa-pen-ruler"></i> Ghim điểm (Admin)
         </button>
@@ -67,6 +70,78 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- QUIZ / PRACTICE MODAL (HỆ THỐNG BÀI TẬP & GAME TƯƠNG TÁC) -->
+  <div id="quiz-modal" class="quiz-modal" hidden>
+    <div class="quiz-modal-backdrop" id="quiz-modal-backdrop"></div>
+    <div class="quiz-container" role="dialog" aria-modal="true">
+      
+      <!-- Quiz Header -->
+      <div class="quiz-header">
+        <div class="quiz-header-left">
+          <span class="quiz-badge" id="quiz-badge-unit">🎮 Unit 1 Practice</span>
+          <span class="quiz-counter" id="quiz-counter">Câu 1/4</span>
+        </div>
+        <div class="quiz-header-right">
+          <div class="quiz-stars" id="quiz-stars-display">
+            <span class="star-icon">⭐</span> <span id="quiz-star-count" class="star-count">0</span>
+          </div>
+          <button id="btn-close-quiz" class="btn-close-quiz" aria-label="Đóng bài tập">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quiz Progress Bar -->
+      <div class="quiz-progress-track">
+        <div class="quiz-progress-fill" id="quiz-progress-fill" style="width: 25%;"></div>
+      </div>
+
+      <!-- Active Question Panel -->
+      <div class="quiz-body" id="quiz-question-panel">
+        <div class="quiz-prompt-card">
+          <button id="btn-quiz-audio" class="btn-quiz-audio" title="Bấm để nghe lại">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <div class="quiz-prompt-texts">
+            <span class="quiz-listen-label">Bé hãy bấm loa và lắng nghe:</span>
+            <h3 class="quiz-prompt-text" id="quiz-prompt-text">"Listen and choose: book"</h3>
+          </div>
+        </div>
+
+        <div class="quiz-options-grid" id="quiz-options-grid">
+          <!-- 4 Option Cards injected dynamically -->
+        </div>
+
+        <div class="quiz-feedback-bar" id="quiz-feedback-bar" hidden>
+          <span class="feedback-icon" id="feedback-icon">🎉</span>
+          <span class="feedback-text" id="feedback-text">Đúng rồi! Bé giỏi quá!</span>
+        </div>
+      </div>
+
+      <!-- Completion Screen (Hidden by default) -->
+      <div class="quiz-body quiz-result-panel" id="quiz-result-panel" hidden>
+        <div class="trophy-animation">🏆</div>
+        <h2 class="result-title">Xuất Sắc! Bé Đã Hoàn Thành!</h2>
+        <p class="result-subtitle">Bé đã trả lời rất giỏi bài luyện tập này.</p>
+        
+        <div class="result-score-box">
+          <div class="result-stars" id="result-stars-stars">⭐⭐⭐⭐</div>
+          <div class="result-score-text"><span id="result-correct-count">4</span> / <span id="result-total-count">4</span> câu đúng</div>
+        </div>
+
+        <div class="result-actions">
+          <button id="btn-replay-quiz" class="btn-quiz-primary">
+            <i class="fa-solid fa-rotate-right"></i> Luyện tập lại
+          </button>
+          <button id="btn-finish-quiz" class="btn-quiz-secondary">
+            <i class="fa-solid fa-book-open"></i> Quay lại học sách
+          </button>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <!-- POPUP MODAL (THẺ TỪ VỰNG XINH XẮN KHI BẤM LOA) -->
