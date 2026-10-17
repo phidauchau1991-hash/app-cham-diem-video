@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0284c7">
+  <title>Global Success 1 — Sách Giáo Khoa Tương Tác</title>
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Main Stylesheet (Version 2.0.0) -->
+  <link rel="stylesheet" href="styles.css?v=2.0.0">
+</head>
+<body>
+
+  <div class="app-container" id="app-container">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <header class="top-navbar">
+      <div class="brand-section">
+        <span class="brand-badge"><i class="fa-solid fa-book-open"></i> GS1</span>
+        <div class="unit-selector-wrapper">
+          <select id="unit-dropdown" class="unit-dropdown">
+            <option value="u1">Unit 1: In the school playground</option>
+            <option value="u2">Unit 2: In the dining room</option>
+            <option value="u3">Unit 3: At the street market</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="nav-controls">
+        <button id="btn-prev" class="nav-btn" title="Trang trước" aria-label="Trang trước">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <span id="page-pill" class="page-pill">Trang 7 / 77</span>
+        <button id="btn-next" class="nav-btn" title="Trang sau" aria-label="Trang sau">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <div class="tool-actions">
+        <button id="btn-admin-toggle" class="admin-toggle-btn" title="Bật/Tắt chế độ ghim tọa độ loa">
+          <i class="fa-solid fa-pen-ruler"></i> Ghim điểm (Admin)
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEWER CONTAINER (CHỐNG GIẬT LAYOUT, CHUẨN TỶ LỆ TRANG) -->
+    <main class="viewer-container">
+      <div class="book-page-wrapper" id="book-page-wrapper">
+        <img id="book-page-img" class="book-page-img" src="book_pages/global_success_1/page_007.webp" alt="Trang sách giáo khoa">
+        <div id="hotspot-overlay" class="hotspot-overlay">
+          <!-- Các nút loa được sinh động từ app.js -->
+        </div>
+      </div>
+    </main>
+
+    <!-- ADMIN BOTTOM TOOLBAR (Chỉ hiện khi bật Admin) -->
+    <div id="admin-toolbar" class="admin-toolbar" hidden>
+      <span><i class="fa-solid fa-circle-info"></i> <strong>Chế độ Admin:</strong> Click vào bất kỳ vị trí nào trên trang sách để ghim điểm loa.</span>
+      <div style="display: flex; gap: 8px;">
+        <button id="btn-export-json"><i class="fa-solid fa-download"></i> Xuất file JSON</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- POPUP MODAL (THẺ TỪ VỰNG XINH XẮN KHI BẤM LOA) -->
+  <div id="vocab-modal" class="vocab-modal" hidden>
+    <div class="vocab-modal-backdrop" id="vocab-modal-backdrop"></div>
+    <div class="vocab-card" role="dialog" aria-modal="true">
+      <button id="btn-close-modal" class="btn-close-modal" aria-label="Đóng">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="modal-emoji" class="card-emoji">📕</div>
+      <h2 id="modal-word" class="card-word">book</h2>
+      <p id="modal-ipa" class="card-ipa">/bʊk/</p>
+      <p id="modal-vi" class="card-vi">Quyển sách</p>
+      <button id="btn-replay-audio" class="btn-replay-audio">
+        <i class="fa-solid fa-volume-high"></i> Nghe Lại
+      </button>
+    </div>
+  </div>
+
+  <!-- ADMIN PIN SELECTION DIALOG -->
+  <div id="pin-dialog" class="pin-dialog" hidden>
+    <div class="vocab-modal-backdrop" onclick="document.getElementById('pin-dialog').hidden = true"></div>
+    <div class="pin-dialog-panel">
+      <h3 class="pin-dialog-title"><i class="fa-solid fa-location-dot"></i> Ghim điểm âm thanh</h3>
+      <div id="pin-coords-badge" class="pin-coords-badge">Tọa độ: X: 0% · Y: 0%</div>
+      
+      <div class="field-group">
+        <label for="pin-vocab-select">Chọn từ vựng / mẫu câu gán vào điểm này:</label>
+        <select id="pin-vocab-select">
+          <!-- Tự động nạp từ data.js -->
+        </select>
+      </div>
+
+      <div class="pin-dialog-actions">
+        <button id="btn-cancel-pin" class="btn-cancel-pin">Hủy</button>
+        <button id="btn-save-pin" class="btn-save-pin">Lưu Điểm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-msg" class="toast-msg">Thông báo</div>
+
+  <!-- JavaScript Modules -->
+  <script src="data.js?v=2.0.0"></script>
+  <script src="app.js?v=2.0.0"></script>
+</body>
+</html>
