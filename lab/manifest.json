@@ -1,0 +1,25 @@
+{
+  "name": "Anh Ngữ Nhật Mỹ - Sách Số Tương Tác",
+  "short_name": "Nhật Mỹ",
+  "description": "Ứng dụng sách giáo trình điện tử tương tác chuẩn quốc tế - Anh Ngữ Nhật Mỹ",
+  "start_url": "viewer.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "logo_nhat_my.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo_nhat_my.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0284c7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nhật Mỹ">
+<link rel="apple-touch-icon" href="logo_nhat_my.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tủ Sách Global Success – Anh Ngữ Nhật Mỹ</title>
+<script src="data/books-data.js?v=2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    background: #1e293b;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .header-text { flex: 1; }
+  .header-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+  }
+  .header-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 1px;
+  }
+  .student-badge {
+    font-size: 12px;
+    color: #38bdf8;
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.25);
+    border-radius: 999px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 20px 18px 10px;
+  }
+
+  .book-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 0 16px 30px;
+  }
+
+  .book-card {
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+  .book-card:active {
+    transform: scale(0.97);
+    border-color: #0284c7;
+  }
+
+  .book-cover-placeholder {
+    width: 100%;
+    aspect-ratio: 3/4;
+    background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .book-cover-emoji {
+    font-size: 44px;
+    line-height: 1;
+  }
+  .book-cover-num {
+    font-size: 28px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.95);
+    font-family: -apple-system, sans-serif;
+  }
+
+  .book-info {
+    padding: 10px 12px 12px;
+  }
+  .book-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 3px;
+  }
+  .book-desc {
+    font-size: 11.5px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .book-progress {
+    margin-top: 7px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: #334155;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: #0284c7;
+    border-radius: 999px;
+    transition: width 0.4s;
+  }
+  .progress-label {
+    font-size: 10px;
+    color: #64748b;
+    white-space: nowrap;
+  }
+
+  .badge-new {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.3px;
+  }
+  .badge-locked {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: #475569;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  .book-card.locked {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 12px;
+    color: #475569;
+    padding: 10px 20px 30px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="logo_nhat_my.png" class="logo" alt="Logo Nhật Mỹ" onerror="this.style.display='none'">
+  <div class="header-text">
+    <div class="header-title">📚 Tủ Sách Global Success</div>
+    <div class="header-sub">Chọn giáo trình Tiếng Anh để bắt đầu học</div>
+  </div>
+  <div class="student-badge" id="student-badge">👤 Học viên</div>
+</header>
+
+<div class="section-title">Bộ giáo trình Global Success (NXBGDVN)</div>
+
+<div class="book-grid" id="book-grid">
+  <!-- Render qua JS -->
+</div>
+
+<div class="footer-note">Anh Ngữ Nhật Mỹ · Giáo trình tương tác số chuẩn sư phạm</div>
+
+<script>
+const BOOKS = [
+  {
+    id: 'global_success_1',
+    name: 'Tiếng Anh 1',
+    desc: 'Unit 1: In the school playground\nÂm thanh Studio-Grade & Đo đạc chuẩn xác',
+    emoji: '📘',
+    num: '1',
+    color: '#e8453c',
+    totalLessons: 3,
+    available: true
+  },
+  {
+    id: 'global_success_2',
+    name: 'Tiếng Anh 2',
+    desc: 'Chương trình lớp 2\nSắp ra mắt',
+    emoji: '📙',
+    num: '2',
+    color: '#f59e0b',
+    totalLessons: 16,
+    available: false
+  },
+  {
+    id: 'global_success_3',
+    name: 'Tiếng Anh 3',
+    desc: 'Chương trình lớp 3\nSắp ra mắt',
+    emoji: '📗',
+    num: '3',
+    color: '#10b981',
+    totalLessons: 20,
+    available: false
+  },
+  {
+    id: 'global_success_4',
+    name: 'Tiếng Anh 4',
+    desc: 'Chương trình lớp 4\nSắp ra mắt',
+    emoji: '📕',
+    num: '4',
+    color: '#8b5cf6',
+    totalLessons: 20,
+    available: false
+  }
+];
+
+function getStudentName() {
+  return localStorage.getItem('nhatMyStudentName') || 'Học viên';
+}
+
+function getProgress(bookId, totalLessons) {
+  try {
+    const saved = localStorage.getItem('nhatmy_last_lesson_' + bookId);
+    if (saved !== null) {
+      const idx = parseInt(saved, 10);
+      if (!isNaN(idx) && idx >= 0) {
+        return Math.min(Math.round(((idx + 1) / totalLessons) * 100), 100);
+      }
+    }
+  } catch (_) {}
+  return 0;
+}
+
+function renderBooks() {
+  const grid = document.getElementById('book-grid');
+  const name = getStudentName();
+  document.getElementById('student-badge').textContent = '👤 ' + name;
+
+  BOOKS.forEach(book => {
+    const isUnlocked = book.available;
+    const progress = getProgress(book.id, book.totalLessons);
+
+    const card = document.createElement('div');
+    card.className = 'book-card' + (!isUnlocked ? ' locked' : '');
+
+    if (isUnlocked) {
+      card.onclick = () => {
+        window.location.href = 'viewer.html?book=' + book.id;
+      };
+    }
+
+    card.innerHTML =
+      '<div class="book-cover-placeholder" style="background: linear-gradient(135deg, ' + book.color + ' 0%, ' + book.color + 'cc 100%)">' +
+        '<div class="book-cover-emoji">' + book.emoji + '</div>' +
+        '<div class="book-cover-num">' + book.num + '</div>' +
+      '</div>' +
+      '<div class="book-info">' +
+        '<div class="book-name">' + book.name + '</div>' +
+        '<div class="book-desc">' + book.desc.replace('\n', '<br>') + '</div>' +
+        (isUnlocked && progress > 0 ?
+          '<div class="book-progress">' +
+            '<div class="progress-bar-wrap"><div class="progress-bar" style="width:' + progress + '%"></div></div>' +
+            '<span class="progress-label">' + progress + '%</span>' +
+          '</div>' : '') +
+      '</div>' +
+      (!book.available ? '<div class="badge-locked">🔒 Sắp ra</div>' :
+        (progress === 0 ? '<div class="badge-new">MỚI</div>' : ''));
+
+    grid.appendChild(card);
+  });
+}
+
+renderBooks();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
